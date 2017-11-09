@@ -21,8 +21,6 @@ char charFromWeb[9];
 byte IP_eth[] = {169,254,2,184};
 byte MAC_eth[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
 
-int ctr_detected = 0;
-int ctr_undetected = 0;
 int calibrationTime = 30; 
 int iterasi = 0;
 int counter_outdoor_detected = 0;
@@ -97,29 +95,20 @@ String collecting_sensor(boolean outdoor_pir,boolean indoor_pir,int ussrf){
     outdoor = STATUS_HUMAN_DETECTED;
     counter_outdoor_detected ++;
     counter_outdoor_no_detect = 0;
-    counter_indoor_detected = 0;
-    counter_indoor_no_detect = 0;
   }else{
     outdoor = STATUS_NO_HUMAN_DETECTED;
     counter_outdoor_detected = 0;
-    counter_outdoor_no_detect ++;
-    counter_indoor_detected = 0;
-    counter_indoor_no_detect = 0;    
+    counter_outdoor_no_detect ++;   
   }
   if(indoor_pir){
     indoor = STATUS_HUMAN_DETECTED;
-    counter_outdoor_detected = 0;
-    counter_outdoor_no_detect = 0;
     counter_indoor_detected ++;
     counter_indoor_no_detect = 0;
   }else{
     indoor = STATUS_NO_HUMAN_DETECTED;    
-    counter_outdoor_detected = 0;
-    counter_outdoor_no_detect = 0;
     counter_indoor_detected = 0;
     counter_indoor_no_detect ++;
   }
-  
   if(counter_outdoor_detected > 5 || counter_indoor_detected > 5 ){
     state = "STATE_DETECTED";
   }else{
