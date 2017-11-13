@@ -4,14 +4,18 @@
 #define pin_outdoor_pir 2
 #define pin_indoor_pir 3
 #define pin_bright_led 11
-#define trigPin 5
-#define echoPin 4
+#define pin_trigger_ussrf 5
+#define pin_echo_ussrf 4
+#define pin_magnetic A0
+#define pin_buzz 24
 #define STATUS_CONNECTED 1
 #define STATUS_DISCONNECTED 0
 #define STATUS_NO_HUMAN_DETECTED "0"
 #define STATUS_HUMAN_DETECTED "1"
 #define STATE_NULL "NULL"
 #define STATE_DETECTED "DETECTED"
+#define DOOR_OPEN 1
+#define DOOR_CLOSE 0
 #define API_KEY "66589ae77387a90660219a2aad624e94"
 
 char namaServer[] = "169.254.2.183";
@@ -47,13 +51,17 @@ void setup() {
   Serial.println("--------------------------------------------------"); 
   Serial.println("Setting Perangkat");
   Serial.println("Setting PIR dan teman-teman");
-  pinMode(trigPin, OUTPUT);
-  pinMode(echoPin, INPUT);
+  pinMode(pin_trigger_ussrf, OUTPUT);
+  pinMode(pin_echo_ussrf, INPUT);
   pinMode(pin_outdoor_pir, INPUT);
   digitalWrite(pin_outdoor_pir, LOW);
   pinMode(pin_indoor_pir, INPUT);
   digitalWrite(pin_indoor_pir, LOW);
   pinMode(pin_bright_led, OUTPUT);
+  //--
+  pinMode(pin_buzz,OUTPUT);
+  pinMode(pin_magnetic,INPUT);
+  //--
   Serial.print("calibrating sensor ");
   for(int i = 0; i < calibrationTime; i++){
     Serial.print(".");
@@ -80,7 +88,7 @@ void loop() {
   iterasi++;
   Serial.print("Iterasi ke : ");Serial.println(iterasi);
   int resultBukaKoneksi = bukaKoneksi();
-  String data = collecting_sensor(outdoor_pir(),indoor_pir(),ussrf());
+  String data = collecting_sensor(outdoor_pir(),indoor_pir(),ussrf(),magnetic());
   if(resultBukaKoneksi==1){
       kirim_data(data);
       Serial.println();
@@ -89,7 +97,7 @@ void loop() {
   Serial.println("--------------------------------------------------------------\n");
 }
 
-String collecting_sensor(boolean outdoor_pir,boolean indoor_pir,int ussrf){
+String collecting_sensor(boolean outdoor_pir,boolean indoor_pir,int ussrf,int magnetic_sw){
   String data,outdoor,indoor,state;
   if(outdoor_pir){
     outdoor = STATUS_HUMAN_DETECTED;
@@ -115,7 +123,7 @@ String collecting_sensor(boolean outdoor_pir,boolean indoor_pir,int ussrf){
     state = "STATE_NULL";
   }
  
-  data =  state + "/" + outdoor + "/" + indoor + "/" + ussrf + "/" + API_KEY + "/";
+  data =  state + "/" + outdoor + "/" + indoor + "/" + ussrf + "/"  + magnetic_sw + "/" + API_KEY + "/";
   return data;
 }
 
@@ -167,17 +175,35 @@ boolean indoor_pir(){
 
 int ussrf(){
   long duration, distance;
-  digitalWrite(trigPin, LOW);   // Added this line
+  digitalWrite(pin_trigger_ussrf, LOW);   // Added this line
   delayMicroseconds(2);         // Added this line
-  digitalWrite(trigPin, HIGH);  //  delayMicroseconds(1000); - Removed this line
+  digitalWrite(pin_trigger_ussrf, HIGH);  //  delayMicroseconds(1000); - Removed this line
   delayMicroseconds(10);        // Added this line
-  digitalWrite(trigPin, LOW);
-  duration = pulseIn(echoPin, HIGH);
+  digitalWrite(pin_trigger_ussrf, LOW);
+  duration = pulseIn(pin_echo_ussrf, HIGH);
   distance = (duration/2) / 29.1;
   delay(500);
   return distance;
 }
 
+
+int magnetic(){
+  int magnet;
+  int baca_switch = analogRead(pin_magnetic);
+  Serial.print("  > > > > ");
+  Serial.println(baca_switch);
+  if(baca_switch < 1023){
+    digitalWrite(24,LOW);
+    magnet = DOOR_CLOSE;
+  }else{
+    digitalWrite(24,HIGH);
+    delay(500);
+    digitalWrite(24,LOW);
+    delay(100);
+    magnet = DOOR_OPEN;
+  }  
+  return magnet;
+}
 
 int bukaKoneksi(){
   Serial.print("Mencoba sambungan ke server http://"); 
