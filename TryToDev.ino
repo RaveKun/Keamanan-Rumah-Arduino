@@ -1,12 +1,13 @@
 #include <Ethernet.h>
 #include <SPI.h>
 
+
 #define pin_outdoor_pir 2
 #define pin_indoor_pir 3
 #define pin_bright_led 11
 #define pin_trigger_ussrf 5
 #define pin_echo_ussrf 4
-#define pin_magnetic A0
+#define pin_magnetic A8
 #define pin_buzz 24
 #define STATUS_CONNECTED 1
 #define STATUS_DISCONNECTED 0
@@ -18,9 +19,12 @@
 #define DOOR_CLOSE 0
 #define API_KEY "66589ae77387a90660219a2aad624e94"
 
+
+
 char namaServer[] = "169.254.2.183";
-char inString[32];
+char inString[1024];
 char charFromWeb[9];
+
 
 byte IP_eth[] = {169,254,2,184};
 byte MAC_eth[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
@@ -31,6 +35,9 @@ int counter_outdoor_detected = 0;
 int counter_outdoor_no_detect = 0;
 int counter_indoor_detected = 0;
 int counter_indoor_no_detect = 0;
+int counter_door_open = 0;
+int counter_door_close = 0;
+
 
 boolean lockLow = true;
 boolean lockLow2 = true;
@@ -43,6 +50,9 @@ boolean startRead = false;
 long unsigned int lowIn;
 long unsigned int lowIn2; 
 long unsigned int pause = 100;  
+
+String password;
+String secure_key;
 
 EthernetClient myEthernet;
 
@@ -86,19 +96,20 @@ void setup() {
 void loop() {
   Serial.println("--------------------------------------------------------------");
   iterasi++;
-  Serial.print("Iterasi ke : ");Serial.println(iterasi);
+  Serial.print("Iterasi ke : ");
+  Serial.println(iterasi);
   int resultBukaKoneksi = bukaKoneksi();
   String data = collecting_sensor(outdoor_pir(),indoor_pir(),ussrf(),magnetic());
   if(resultBukaKoneksi==1){
       kirim_data(data);
       Serial.println();
   }
-  delay(3000);
   Serial.println("--------------------------------------------------------------\n");
+  delay(3000);
 }
 
 String collecting_sensor(boolean outdoor_pir,boolean indoor_pir,int ussrf,int magnetic_sw){
-  String data,outdoor,indoor,state;
+  String data,outdoor,indoor,state,state_indoor,state_outdoor,state_magnetic;
   if(outdoor_pir){
     outdoor = STATUS_HUMAN_DETECTED;
     counter_outdoor_detected ++;
@@ -117,12 +128,47 @@ String collecting_sensor(boolean outdoor_pir,boolean indoor_pir,int ussrf,int ma
     counter_indoor_detected = 0;
     counter_indoor_no_detect ++;
   }
-  if(counter_outdoor_detected > 5 || counter_indoor_detected > 5 ){
-    state = "STATE_DETECTED";
+
+  if(magnetic_sw == DOOR_OPEN){
+    counter_door_open ++;
+    counter_door_close = 0;
   }else{
-    state = "STATE_NULL";
+    counter_door_open = 0;
+    counter_door_close ++;
   }
- 
+
+  if(counter_outdoor_detected < 3){
+    state_outdoor = "NORMAL";
+  }else
+  if(counter_outdoor_detected >= 3 && counter_outdoor_detected <= 5 ){
+    state_outdoor = "SIAGA";
+  }else
+  if(counter_outdoor_detected > 5){
+    state_outdoor = "AWAS";
+  }
+  
+  if(counter_indoor_detected < 3){
+    state_indoor = "NORMAL";
+  }else
+  if(counter_indoor_detected >= 3 && counter_indoor_detected <= 5 ){
+    state_indoor = "SIAGA";
+  }else
+  if(counter_indoor_detected > 5){
+    state_indoor = "AWAS";
+  }
+
+  if(counter_door_open < 3){
+    state_magnetic = "NORMAL";
+  }else
+  if(counter_door_open >= 3 && counter_door_open <= 5 ){
+    state_magnetic = "SIAGA";
+  }else
+  if(counter_door_open > 5){
+    state_magnetic = "AWAS";
+  }
+
+  state = state_outdoor + "_" + state_indoor + "_" + state_magnetic ;  
+  
   data =  state + "/" + outdoor + "/" + indoor + "/" + ussrf + "/"  + magnetic_sw + "/" + API_KEY + "/";
   return data;
 }
@@ -149,6 +195,7 @@ boolean outdoor_pir(){
   }
   return outdoor_pin_status;
 }
+
 
 boolean indoor_pir(){
   if (digitalRead(pin_indoor_pir) == HIGH){
@@ -192,15 +239,15 @@ int magnetic(){
   int baca_switch = analogRead(pin_magnetic);
   Serial.print("  > > > > ");
   Serial.println(baca_switch);
-  if(baca_switch < 1023){
-    digitalWrite(24,LOW);
-    magnet = DOOR_CLOSE;
-  }else{
+  if(baca_switch < 1020){
     digitalWrite(24,HIGH);
     delay(500);
     digitalWrite(24,LOW);
     delay(100);
     magnet = DOOR_OPEN;
+  }else{
+    digitalWrite(24,LOW);
+    magnet = DOOR_CLOSE;
   }  
   return magnet;
 }
@@ -242,9 +289,12 @@ void kirim_data(String data){
     String res;
     res = baca_response_web();
     if(res.equals("")==false){
-      Serial.println("Data sensor tersimpan.");
-      Serial.print("Jumlah rows database ada : ");
+      Serial.print("Response server : ");
       Serial.println(res);
+      String raw_secure_key = get_secure_key(res, '-', 1);
+      secure_key = get_secure_key(raw_secure_key, '#', 0);
+      Serial.print("Secure key : ");
+      Serial.println(secure_key);
     }
 }
 
@@ -256,7 +306,7 @@ String baca_response_web(){
   Serial.print("Timer Millis () : ");
   Serial.println(time);
   int stringPos = 0;
-  memset( &inString, 0, 32 );
+  memset( &inString, 0, 1024 );
   int unvailable_ctr = 0;
   while(true){
     if (myEthernet.available()) {
@@ -291,8 +341,22 @@ String baca_response_web(){
          return inString;
        }
     }
-  }
+  } 
 }
+
+String get_secure_key(String data, char separator, int index){
+  int found = 0;
+  int strIndex[] = {0, -1};
+  int maxIndex = data.length()-1;
+  for(int i=0; i<=maxIndex && found<=index; i++){
+    if(data.charAt(i)==separator || i==maxIndex){
+        found++;
+        strIndex[0] = strIndex[1]+1;
+        strIndex[1] = (i == maxIndex) ? i+1 : i;
+    }
+  }
+  return found>index ? data.substring(strIndex[0], strIndex[1]) : "";
+}  
 
 
 
