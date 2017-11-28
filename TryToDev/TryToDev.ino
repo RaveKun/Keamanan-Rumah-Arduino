@@ -4,11 +4,10 @@
 
 #define pin_outdoor_pir 2
 #define pin_indoor_pir 3
-#define pin_bright_led 11
-#define pin_trigger_ussrf 5
-#define pin_echo_ussrf 4
+#define pin_echo_ussrf 5
+#define pin_trigger_ussrf 4
+#define pin_buzz 6
 #define pin_magnetic A8
-#define pin_buzz 24
 #define STATUS_CONNECTED 1
 #define STATUS_DISCONNECTED 0
 #define STATUS_NO_HUMAN_DETECTED "0"
@@ -17,7 +16,7 @@
 #define STATE_DETECTED "DETECTED"
 #define DOOR_OPEN 1
 #define DOOR_CLOSE 0
-#define API_KEY "66589ae77387a90660219a2aad624e94"
+#define API_KEY "2cecb56a247cd21bc001c422465fe7ea"
 
 
 
@@ -53,6 +52,7 @@ long unsigned int pause = 100;
 
 String password;
 String secure_key;
+String monitoring = "KONDISI ON";
 
 EthernetClient myEthernet;
 
@@ -67,7 +67,6 @@ void setup() {
   digitalWrite(pin_outdoor_pir, LOW);
   pinMode(pin_indoor_pir, INPUT);
   digitalWrite(pin_indoor_pir, LOW);
-  pinMode(pin_bright_led, OUTPUT);
   //--
   pinMode(pin_buzz,OUTPUT);
   pinMode(pin_magnetic,INPUT);
@@ -104,6 +103,8 @@ void loop() {
       kirim_data(data);
       Serial.println();
   }
+  Serial.print("Monitoring : ");
+  Serial.println(monitoring);
   Serial.println("--------------------------------------------------------------\n");
   delay(3000);
 }
@@ -239,14 +240,14 @@ int magnetic(){
   int baca_switch = analogRead(pin_magnetic);
   Serial.print("  > > > > ");
   Serial.println(baca_switch);
-  if(baca_switch < 1020){
-    digitalWrite(24,HIGH);
+  if(baca_switch < 1020 && monitoring.equals("KONDISI ON")){
+    digitalWrite(pin_buzz,HIGH);
     delay(500);
-    digitalWrite(24,LOW);
+    digitalWrite(pin_buzz,LOW);
     delay(100);
     magnet = DOOR_OPEN;
   }else{
-    digitalWrite(24,LOW);
+    digitalWrite(pin_buzz,LOW);
     magnet = DOOR_CLOSE;
   }  
   return magnet;
@@ -291,8 +292,10 @@ void kirim_data(String data){
     if(res.equals("")==false){
       Serial.print("Response server : ");
       Serial.println(res);
-      String raw_secure_key = get_secure_key(res, '-', 1);
-      secure_key = get_secure_key(raw_secure_key, '#', 0);
+      String raw_secure_key = string_spliter(res, '-', 1);
+      secure_key = string_spliter(raw_secure_key, '#', 0);
+      String raw_monitoring = string_spliter(res, '-', 2);
+      monitoring = string_spliter(raw_monitoring, '#', 0);
       Serial.print("Secure key : ");
       Serial.println(secure_key);
     }
@@ -344,7 +347,7 @@ String baca_response_web(){
   } 
 }
 
-String get_secure_key(String data, char separator, int index){
+String string_spliter(String data, char separator, int index){
   int found = 0;
   int strIndex[] = {0, -1};
   int maxIndex = data.length()-1;
