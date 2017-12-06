@@ -18,12 +18,9 @@
 #define DOOR_CLOSE 0
 #define API_KEY "2cecb56a247cd21bc001c422465fe7ea"
 
-
-
 char namaServer[] = "169.254.2.183";
 char inString[1024];
 char charFromWeb[9];
-
 
 byte IP_eth[] = {169,254,2,184};
 byte MAC_eth[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
@@ -36,7 +33,6 @@ int counter_indoor_detected = 0;
 int counter_indoor_no_detect = 0;
 int counter_door_open = 0;
 int counter_door_close = 0;
-
 
 boolean lockLow = true;
 boolean lockLow2 = true;
@@ -122,6 +118,13 @@ String collecting_sensor(boolean outdoor_pir,boolean indoor_pir,int ussrf,int ma
   }
   if(indoor_pir){
     indoor = STATUS_HUMAN_DETECTED;
+    if(monitoring.equals("KONDISI ON")){
+      digitalWrite(pin_buzz,HIGH);
+      Serial.println("TRUE");
+    }else{
+      digitalWrite(pin_buzz,LOW);
+      Serial.println("FALSE");
+    }
     counter_indoor_detected ++;
     counter_indoor_no_detect = 0;
   }else{
@@ -138,13 +141,13 @@ String collecting_sensor(boolean outdoor_pir,boolean indoor_pir,int ussrf,int ma
     counter_door_close ++;
   }
 
-  if(counter_outdoor_detected < 3){
+  if(counter_outdoor_detected < 3 || ussrf > 10){
     state_outdoor = "NORMAL";
   }else
-  if(counter_outdoor_detected >= 3 && counter_outdoor_detected <= 5 ){
+  if(counter_outdoor_detected >= 3 && (ussrf >=5 && ussrf <= 10)){
     state_outdoor = "SIAGA";
   }else
-  if(counter_outdoor_detected > 5){
+  if(counter_outdoor_detected >= 3 && ussrf <5 ){
     state_outdoor = "AWAS";
   }
   
@@ -215,6 +218,7 @@ boolean indoor_pir(){
     if (!lockLow2 && millis() - lowIn2 > pause) {
       lockLow2 = true;
       indoor_pin_status = false;
+      digitalWrite(pin_buzz,LOW);
       delay(50);
     }
   }
