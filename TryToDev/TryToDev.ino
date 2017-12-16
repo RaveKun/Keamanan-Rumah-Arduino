@@ -1,7 +1,6 @@
 #include <Ethernet.h>
 #include <SPI.h>
 
-
 #define pin_outdoor_pir 2
 #define pin_indoor_pir 3
 #define pin_echo_ussrf 5
@@ -19,6 +18,8 @@
 #define API_KEY "2cecb56a247cd21bc001c422465fe7ea"
 
 char namaServer[] = "169.254.2.183";
+
+//char namaServer[] = "sikaru.laurensius-dede-suhardiman.com";
 char inString[1024];
 char charFromWeb[9];
 
@@ -276,13 +277,16 @@ void kirim_data(String data){
     int ln = data.length();
     String uri_segment;
     uri_segment = "/keamananrumah/index.php/api/post_sensor_data/" + data;
+//    uri_segment = "/index.php/api/post_sensor_data/" + data;
     myEthernet.print("GET ");
     myEthernet.print(uri_segment); 
     Serial.print("Data yang dikirim di ke server : ");
     Serial.println(data);
     myEthernet.println(" HTTP/1.1");
+//    delay(1000);
     myEthernet.print( "Host: " );
     myEthernet.println(" 169.254.2.183 \r\n");
+//    myEthernet.println(" http://sikaru.laurensius-dede-suhardiman.com \r\n");
     Serial.println("Host OK");
     myEthernet.println( "Content-Type: application/x-www-form-urlencoded \r\n" );
     Serial.println("Content type OK");
@@ -291,6 +295,7 @@ void kirim_data(String data){
     myEthernet.print(" \r\n");
     myEthernet.println( "Connection: close" );
     myEthernet.println();
+//    delay(1000); 
     String res;
     res = baca_response_web();
     if(res.equals("")==false){
